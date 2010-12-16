@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Email-Send-SMTP-Gmail
-version:            0.1.1
+version:            0.2
 abstract:           just send emails with attachments using Google's SMTP
 author:
     - Juan José 'Peco' San Martín <peco@cpan.org>
