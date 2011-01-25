@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Email-Send-SMTP-Gmail
-version:            0.21
+version:            0.22
 abstract:           Sends emails with attachments using Google's SMTP
 author:
     - Juan José 'Peco' San Martín <peco@cpan.org>
@@ -15,6 +15,7 @@ requires:
     LWP::MediaTypes:  0
     MIME::Base64:     0
     Net::SMTP::SSL:   0
+    Net::SMTP_auth:   0
     Test::More:       0
 no_index:
     directory:
