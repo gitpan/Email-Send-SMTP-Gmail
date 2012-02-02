@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use vars qw($VERSION);
 
-$VERSION='0.23';
+$VERSION='0.24';
 
 use Net::SMTP::SSL;
 use MIME::Base64;
@@ -49,6 +49,9 @@ sub _checkfiles
   my @attachments=split(/,/,$attachs);
   foreach my $attach(@attachments)
   {
+     $attach=~s/\A[\s,\0,\t,\n,\r]*//;
+     $attach=~s/[\s,\0,\t,\n,\r]*\Z//;
+
      unless (-f $attach) {
        $self->bye;
        die "Unable to find the attachment file: $attach\n";
@@ -155,10 +158,15 @@ sub send
         $self->{sender}->datasend("\n");
         $self->{sender}->datasend($mail->{body} . "\n\n");
         
-         my @attachments=split(/,/,$mail->{attachments});
-         foreach my $attach(@attachments)
-         {
+        my @attachments=split(/,/,$mail->{attachments});
+
+        foreach my $attach(@attachments)
+        {
            my($bytesread, $buffer, $data, $total);
+
+           $attach=~s/\A[\s,\0,\t,\n,\r]*//;
+           $attach=~s/[\s,\0,\t,\n,\r]*\Z//;
+
            my $opened=open(FH, "$attach");
            binmode(FH);
            while (($bytesread = sysread(FH, $buffer, 1024)) == 1024) {

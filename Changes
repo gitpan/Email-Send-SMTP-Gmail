@@ -1,5 +1,7 @@
 Revision history for Email-Send-SMTP-Gmail
 
+0.24    2012/02/02
+        Fixbugs and improvements: RT 71864 and 74625
 0.01    Date/time
         First version, released on an unsuspecting world.
 
