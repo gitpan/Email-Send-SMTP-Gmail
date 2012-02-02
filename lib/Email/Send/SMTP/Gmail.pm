@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use vars qw($VERSION);
 
-$VERSION='0.22';
+$VERSION='0.23';
 
 use Net::SMTP::SSL;
 use MIME::Base64;
@@ -83,7 +83,6 @@ sub send
 
   my $verbose=0;
   $verbose=$properties{'-verbose'} if defined $properties{'-verbose'};
-
   # Load all the email param
   my $mail;
 
@@ -98,6 +97,9 @@ sub send
 
   $mail->{bcc}='';
   $mail->{bcc}=$properties{'-bcc'} if defined $properties{'-bcc'};
+
+  $mail->{charset}='UTF-8';
+  $mail->{charset}=$properties{'-charset'} if defined $properties{'-charset'};
 
   $mail->{subject}='';
   $mail->{subject}=$properties{'-subject'} if defined $properties{'-subject'};
@@ -148,7 +150,8 @@ sub send
 
         # Send text body
         $self->{sender}->datasend("\n--$boundry\n");
-        $self->{sender}->datasend("Content-Type: text/plain\n");
+        $self->{sender}->datasend("Content-Type: text/plain; charset=".$mail->{charset}."\n");
+
         $self->{sender}->datasend("\n");
         $self->{sender}->datasend($mail->{body} . "\n\n");
         
@@ -187,7 +190,7 @@ sub send
         print "With No attachments\n" if $verbose;
         # Send text body
         $self->{sender}->datasend("MIME-Version: 1.0\n");
-        $self->{sender}->datasend("Content-Type: text/plain\n");
+        $self->{sender}->datasend("Content-Type: text/plain; charset=".$mail->{charset}."\n");
         $self->{sender}->datasend("\n");
         $self->{sender}->datasend($mail->{body} . "\n\n");
       }
@@ -227,6 +230,7 @@ Email::Send::SMTP::Gmail - Sends emails with attachments using Google's SMTP
 
    $mail->send(-to=>'target@xxx.com',
                -subject=>'Hello!',
+               -charset=>'KOI8-R'
                -verbose=>'1',
                -body=>'Just testing it',
                -attachments=>'full_path_to_file');
@@ -245,7 +249,7 @@ It supports basic functions such as CC, BCC, ReplyTo.
 
 It creates the object and opens a session with the SMTP.
 
-=item send(-to=>'', [-subject=>'', -cc=>'', -bcc=>'', -replyto=>'', -body=>'', -attachments=>''])
+=item send(-to=>'', [-subject=>'', -cc=>'', -bcc=>'', -replyto=>'', -charset=>'', -body=>'', -attachments=>''])
 
 It composes and sends the email in one shot
 
@@ -304,7 +308,7 @@ Juan Jose 'Peco' San Martin, C<< <peco at cpan.org> >>
 
 =head1 COPYRIGHT
 
-Copyright 2010 Microbotica
+Copyright 2011 Microbotica
 
 This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
 
