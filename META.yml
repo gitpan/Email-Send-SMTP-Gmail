@@ -1,5 +1,5 @@
 ---
-abstract: "Sends emails with attachments using Google's SMTP"
+abstract: "Sends emails with attachments using Google's SMTP (or any other SMTP server)"
 author:
   - "Juan José 'Peco' San Martín <peco@cpan.org>"
 build_requires:
@@ -24,4 +24,4 @@ requires:
   Net::SMTP::SSL: 0
   Net::SMTP_auth: 0
   Test::More: 0
-version: 0.30
+version: 0.32
