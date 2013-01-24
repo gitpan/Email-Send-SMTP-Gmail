@@ -1,5 +1,5 @@
 {
-   "abstract" : "Sends emails with attachments using Google's SMTP (or any other SMTP server)",
+   "abstract" : "Sends emails with attachments using Google's SMTP",
    "author" : [
       "Juan José 'Peco' San Martín <peco@cpan.org>"
    ],
@@ -42,5 +42,5 @@
       }
    },
    "release_status" : "stable",
-   "version" : "0.32"
+   "version" : "0.33"
 }

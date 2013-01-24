@@ -1,10 +1,10 @@
-package Email::Send::SMTP::Gmail;
+package Gmail;
 
 use strict;
 use warnings;
 use vars qw($VERSION);
 
-$VERSION='0.32';
+$VERSION='0.33';
 
 use Net::SMTP::SSL;
 use MIME::Base64;
@@ -34,7 +34,9 @@ sub _initsmtp{
   my $debug=shift;
   # The module sets the SMTP google but could use another!
   if (not $self->{sender} = Net::SMTP::SSL->new($smtp, Port => $port,
-                                                       Debug => $debug)) {die "Could not connect to SMTP server\n";
+                                                       Debug => $debug,
+                                                       SSL_verify_mode => IO::Socket::SSL::SSL_VERIFY_NONE)) { 
+      die "Could not connect to SMTP server\n";  
   }
   # Authenticate
   $self->{sender}->auth($login,$pass) || die "Authentication (SMTP) failed\n";
@@ -109,6 +111,9 @@ sub send
   $mail->{charset}='UTF-8';
   $mail->{charset}=$properties{'-charset'} if defined $properties{'-charset'};
 
+  $mail->{contenttype}='text/plain';
+  $mail->{contenttype}=$properties{'-contenttype'} if defined $properties{'-contenttype'};
+
   $mail->{subject}='';
   $mail->{subject}=$properties{'-subject'} if defined $properties{'-subject'};
 
@@ -158,7 +163,7 @@ sub send
 
         # Send text body
         $self->{sender}->datasend("\n--$boundry\n");
-        $self->{sender}->datasend("Content-Type: text/plain; charset=".$mail->{charset}."\n");
+        $self->{sender}->datasend("Content-Type: ".$mail->{contenttype}."; charset=".$mail->{charset}."\n");
 
         $self->{sender}->datasend("\n");
         $self->{sender}->datasend($mail->{body} . "\n\n");
@@ -203,7 +208,7 @@ sub send
         print "With No attachments\n" if $verbose;
         # Send text body
         $self->{sender}->datasend("MIME-Version: 1.0\n");
-        $self->{sender}->datasend("Content-Type: text/plain; charset=".$mail->{charset}."\n");
+        $self->{sender}->datasend("Content-Type: ".$mail->{contenttype}."; charset=".$mail->{charset}."\n");
         $self->{sender}->datasend("\n");
         $self->{sender}->datasend($mail->{body} . "\n\n");
       }
@@ -228,7 +233,7 @@ __END__
 
 =head1 NAME
 
-Email::Send::SMTP::Gmail - Sends emails with attachments using Google's SMTP (or any other SMTP server)
+Email::Send::SMTP::Gmail - Sends emails with attachments using Google's SMTP
 
 =head1 SYNOPSIS
 
@@ -237,15 +242,16 @@ Email::Send::SMTP::Gmail - Sends emails with attachments using Google's SMTP (or
 
    use Email::Send::SMTP::Gmail;
 
-   my $mail=Email::Send::SMTP::Gmail->new( -smtp=>'smtp.gmail.com',
+   my $mail=Email::Send::SMTP::Gmail->new( -smtp=>'gmail.com',
                                            -login=>'whateveraddress@gmail.com',
                                            -pass=>'whatever_pass');
 
    $mail->send(-to=>'target@xxx.com',
                -subject=>'Hello!',
-               -charset=>'UTF-8'
+               -charset=>'KOI8-R'
                -verbose=>'1',
                -body=>'Just testing it',
+               -contenttype => 'text/plain',
                -attachments=>'full_path_to_file');
 
    $mail->bye;
@@ -269,6 +275,8 @@ It composes and sends the email in one shot
 =over 6
 
 =item  to, cc, bcc: comma separated email addresses
+
+=item  contenttype: Content-Type for the body message. Examples are: text/plain (default), text/html, etc.
 
 =item attachments: comma separated files with full path
 
@@ -321,7 +329,7 @@ Juan Jose 'Peco' San Martin, C<< <peco at cpan.org> >>
 
 =head1 COPYRIGHT
 
-Copyright 2011 Microbotica
+Copyright 2012 Microbotica
 
 This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
 
