@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use vars qw($VERSION);
 
-$VERSION='0.82';
+$VERSION='0.83';
 
 require Net::SMTPS;
 require Net::SMTP;
@@ -257,6 +257,7 @@ sub send
       $self->{sender}->datasend("Cc: " . $mail->{cc} . "\n") if ($mail->{cc} ne '');
       $self->{sender}->datasend("Reply-To: " . $mail->{replyto} . "\n");
       $self->{sender}->datasend("Subject: " . $mail->{subject} . "\n");
+      $self->{sender}->datasend("Date: " . localtime . "\n");
 
       if($mail->{attachments} ne '')
       {
