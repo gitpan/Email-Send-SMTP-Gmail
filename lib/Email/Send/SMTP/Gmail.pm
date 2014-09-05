@@ -1,12 +1,10 @@
 package Email::Send::SMTP::Gmail;
-#package Gmail;
 
 use strict;
 use warnings;
 use vars qw($VERSION);
 
-$VERSION='0.85';
-
+$VERSION='0.87';
 require Net::SMTPS;
 require Net::SMTP;
 use MIME::Base64;
@@ -24,15 +22,14 @@ sub new{
   my $layer='tls'; # Default value
   my $auth='LOGIN'; # Default
   my $ssl_verify_mode=''; #Default - Warning SSL_VERIFY_NONE
+  my $timeout=60;
 
   $smtp=$properties{'-smtp'} if defined $properties{'-smtp'};
   $port=$properties{'-port'} if defined $properties{'-port'};
   $layer=$properties{'-layer'} if defined $properties{'-layer'};
   $auth=$properties{'-auth'} if defined $properties{'-auth'};
   $ssl_verify_mode=$properties{'-ssl_verify_mode'} if defined $properties{'-ssl_verify_mode'};
-
-  my $connect=$self->_initsmtp($smtp,$port,$properties{'-login'},$properties{'-pass'},$layer,$auth,$properties{'-debug'},$ssl_verify_mode,$properties{'-ssl_verify_path'},$properties{'-$ssl_verify_ca'});
-  return $connect if($connect==-1);
+  $timeout=$properties{'-timeout'} if defined $properties{'-timeout'};
 
   if(defined $properties{'-from'}){
     $self->{from}=$properties{'-from'};
@@ -40,6 +37,12 @@ sub new{
   else{
     $self->{from}=$properties{'-login'};
   }
+
+  my $connect=$self->_initsmtp($smtp,$port,$properties{'-login'},$properties{'-pass'},$layer,$auth,$properties{'-debug'},$ssl_verify_mode,$properties{'-ssl_verify_path'},$properties{'-$ssl_verify_ca'},$timeout);
+
+  return -1,$self->{error} if(defined $self->{error});
+#  return $connect if($connect==-1);
+#
   return $self;
 }
 
@@ -55,9 +58,10 @@ sub _initsmtp{
   my $ssl_mode=shift;
   my $ssl_path=shift;
   my $ssl_ca=shift;
+  my $timeout=shift;
 
   # The module sets the SMTP google but could use another!
-  print "Connecting to $smtp using $layer with $auth\n" if $debug;
+  print "Connecting to $smtp using $layer with $auth and timeout of $timeout\n" if $debug;
   # Set port if default
   if($port eq 'default'){
       if($layer eq 'ssl'){
@@ -71,29 +75,35 @@ sub _initsmtp{
   # Set security layer from $layer
   if($layer eq 'none')
   {
-    if (not $self->{sender} = Net::SMTP->new($smtp, Port =>$port, Debug=>$debug)){
-      print "Could not connect to SMTP server ($smtp $port)\n";
-      return -1;
+    if (not $self->{sender} = Net::SMTP->new($smtp, Port =>$port, Debug=>$debug, Timeout=>$timeout)){
+      my $error_string=$self->{sender}->message();
+      chomp $error_string;
+      $self->{error}=$error_string;
+      print "Could not connect to SMTP server ($smtp $port)\n" if $debug;
+      #return -1;
     }
   }
   else{
     my $sec=undef;
     if($layer eq 'tls'){$sec='starttls';}
     elsif($layer eq 'ssl'){$sec='ssl';}
-  # Connect
-    if (not $self->{sender} = Net::SMTPS->new($smtp, Port =>$port, doSSL=>$sec, Debug=>$debug, SSL_verify_mode=>$ssl_mode, SSL_ca_file=>$ssl_ca,SSL_ca_path=>$ssl_path)){
-      print "Could not connect to SMTP server\n";
-      return -1;
+    if (not $self->{sender} = Net::SMTPS->new($smtp, Port =>$port, doSSL=>$sec, Debug=>$debug, SSL_verify_mode=>$ssl_mode, SSL_ca_file=>$ssl_ca,SSL_ca_path=>$ssl_path, Timeout=>$timeout)){
+      my $error_string=$self->{sender}->message();
+      chomp $error_string;
+      $self->{error}=$error_string;
+      print "Could not connect to SMTP server\n" if $debug;
+      #return -1;
     }
   }
-
   if($auth ne 'none'){
      unless($self->{sender}->auth($login,$pass,$auth)){
-         print "Authentication (SMTP) failed\n";
-         return -1;
+         my $error_string=$self->{sender}->message();
+         chomp $error_string;
+         $self->{error}=$error_string;
+         print "Authentication (SMTP) failed\n" if $debug;
+         #return -1;
      }
   }
-
   return $self;
 }
 
@@ -101,6 +111,13 @@ sub bye{
   my $self=shift;
   $self->{sender}->quit();
   return $self;
+}
+
+sub banner{
+  my $self=shift;
+  my $banner=$self->{sender}->banner();
+  chomp $banner;
+  return $banner;
 }
 
 sub _checkfiles
@@ -189,7 +206,8 @@ sub send
   $mail->{to}=$properties{'-to'} if defined $properties{'-to'};
   if($mail->{to} eq ''){
       print "No RCPT found. Please add the TO field\n";
-      return -1;
+      $self->{error}='"No RCPT found. Please add the TO field';
+      return -1,$self->{error};
   }
 
   $mail->{from}=$self->{from};
@@ -378,8 +396,12 @@ sub send
           return 1;
       }
       else{
+          my $error_string=$self->{sender}->message();
+          chomp $error_string;
+          $self->{error}=$error_string;
+
           print "Sorry, there was an error during sending. Please, retry or use Debug\n" if $verbose;
-          return -1;
+          return -1,$self->{error};
       }
 
 }
@@ -398,9 +420,11 @@ Email::Send::SMTP::Gmail - Sends emails with attachments supporting Auth over TL
 
    use Email::Send::SMTP::Gmail;
 
-   my $mail=Email::Send::SMTP::Gmail->new( -smtp=>'smtp.gmail.com',
-                                           -login=>'whateveraddress@gmail.com',
-                                           -pass=>'whatever_pass');
+   my ($mail,$error)=Email::Send::SMTP::Gmail->new( -smtp=>'smtp.gmail.com',
+                                                    -login=>'whateveraddress@gmail.com',
+                                                    -pass=>'whatever_pass');
+
+   print "session error: $error" unless ($email!=-1);
 
    $mail->send(-to=>'target@xxx.com', -subject=>'Hello!', -body=>'Just testing it',
                -attachments=>'full_path_to_file');
@@ -426,6 +450,8 @@ It creates the object and opens a session with the SMTP.
 =item I<layer>: defines the secure layer to use. It could be 'tls', 'ssl' or 'none'. Default value: tls
 
 =item I<port>: defines the port to use. Default values are 25 for tls and 465 for ssl
+
+=item I<timeout>: defined Timeout for the connection. Default is 60 secs
 
 =item I<auth>: defines the authentication method: ANONYMOUS, CRAM-MD5, DIGEST-MD5, EXTERNAL, GSSAPI, LOGIN (default) and PLAIN. It's currently based on SASL::Perl module
 
@@ -466,6 +492,14 @@ Closes the SMTP session
 
 =back
 
+=over
+
+=item banner
+
+Returns SMTP banner
+
+=back
+
 =head1 Examples
 
 Examples
@@ -477,9 +511,11 @@ Send email composed in HTML using Gmail
       use strict;
       use warnings;
       use Email::Send::SMTP::Gmail;
-      my $mail=Email::Send::SMTP::Gmail->new( -smtp=>'smtp.gmail.com',
-                                              -login=>'whateveraddress@gmail.com',
-                                              -pass=>'whatever_pass');
+      my ($mail,$error)=Email::Send::SMTP::Gmail->new( -smtp=>'smtp.gmail.com',
+                                                       -login=>'whateveraddress@gmail.com',
+                                                       -pass=>'whatever_pass');
+
+      print "session error: $error" unless ($email!=-1);
 
       $mail->send(-to=>'target@xxx.com', -subject=>'Hello!',
                   -body=>'Just testing it<br>Bye!',-contenttype=>'text/html');
